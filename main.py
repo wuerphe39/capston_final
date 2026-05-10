@@ -1,17 +1,29 @@
 import time
+import threading
 from detector.audio_stream import AudioStream
 from detector.yamnet_model import BarkDetector
+from tts.xtts_tts import XTTSSpeaker
+from assets.responses.responses import get_response
 
-COOLDOWN = 3.0  # 짖음 감지 후 재감지까지 대기 시간 (초)
+COOLDOWN = 5.0  # 짖음 감지 후 재감지까지 대기 시간 (초)
+
+
+def play_audio(path: str):
+    import sounddevice as sd
+    import soundfile as sf
+    data, samplerate = sf.read(path)
+    sd.play(data, samplerate)
+    sd.wait()
 
 
 def main():
     print("=" * 50)
-    print("  반려견 짖음 감지 시스템 - Step 1 테스트")
+    print("  반려견 짖음 감지 시스템 - Step 2 (TTS 연동)")
     print("=" * 50)
 
     detector = BarkDetector()
     stream = AudioStream()
+    tts = XTTSSpeaker()
 
     last_bark_time = 0.0
 
@@ -26,11 +38,20 @@ def main():
             now = time.time()
             if is_bark and (now - last_bark_time) > COOLDOWN:
                 last_bark_time = now
-                print(f"🐕 짖음 감지! | 클래스: {label} | 점수: {score:.3f}")
+                print(f"\n🐕 짖음 감지! | 클래스: {label} | 점수: {score:.3f}")
+
+                text = get_response()
+                print(f"[멘트] {text}")
+
+                # TTS 생성 후 재생 (별도 스레드)
+                def tts_and_play():
+                    audio_path = tts.speak(text)
+                    play_audio(audio_path)
+
+                threading.Thread(target=tts_and_play, daemon=True).start()
+
             else:
-                # 조용할 때는 점수만 출력 (디버깅용)
-                top_label = label
-                print(f"   대기 중...  | 클래스: {top_label} | 점수: {score:.3f}", end="\r")
+                print(f"   대기 중...  | 클래스: {label} | 점수: {score:.3f}", end="\r")
 
     except KeyboardInterrupt:
         print("\n\n[메인] 종료 요청 받음.")
