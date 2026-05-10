@@ -1,11 +1,13 @@
 import time
 import threading
+import subprocess
 from detector.audio_stream import AudioStream
 from detector.yamnet_model import BarkDetector
 from tts.xtts_tts import XTTSSpeaker
+from avatar.did_avatar import DIDAvatar
 from assets.responses.responses import get_response
 
-COOLDOWN = 5.0  # 짖음 감지 후 재감지까지 대기 시간 (초)
+COOLDOWN = 5.0
 
 
 def play_audio(path: str):
@@ -16,14 +18,23 @@ def play_audio(path: str):
     sd.wait()
 
 
+def play_video(path: str):
+    """ffplay로 영상 재생 (소리 포함)"""
+    subprocess.run(
+        ["ffplay", "-autoexit", "-loglevel", "quiet", path],
+        check=False,
+    )
+
+
 def main():
     print("=" * 50)
-    print("  반려견 짖음 감지 시스템 - Step 2 (TTS 연동)")
+    print("  반려견 짖음 감지 시스템 - Step 3 (D-ID 연동)")
     print("=" * 50)
 
     detector = BarkDetector()
     stream = AudioStream()
     tts = XTTSSpeaker()
+    avatar = DIDAvatar()
 
     last_bark_time = 0.0
 
@@ -43,12 +54,12 @@ def main():
                 text = get_response()
                 print(f"[멘트] {text}")
 
-                # TTS 생성 후 재생 (별도 스레드)
-                def tts_and_play():
+                def tts_avatar_and_play():
                     audio_path = tts.speak(text)
-                    play_audio(audio_path)
+                    video_path = avatar.generate(audio_path)
+                    play_video(video_path)
 
-                threading.Thread(target=tts_and_play, daemon=True).start()
+                threading.Thread(target=tts_avatar_and_play, daemon=True).start()
 
             else:
                 print(f"   대기 중...  | 클래스: {label} | 점수: {score:.3f}", end="\r")
