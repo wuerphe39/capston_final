@@ -11,9 +11,9 @@
 | 항목 | 내용 |
 |------|------|
 | 짖음 감지 | Google YAMNet (로컬 실행) |
-| 목소리 클로닝 | ElevenLabs API |
+| 목소리 클로닝 | ElevenLabs API (Instant Voice Clone) |
 | 얼굴 합성 | D-ID API |
-| 실행 환경 | 노트북 또는 라즈베리파이 + 마이크 + 디스플레이 |
+| 실행 환경 | Windows 노트북 + 마이크 + 디스플레이 |
 
 ---
 
@@ -22,15 +22,15 @@
 ```
 🎙️ 마이크 입력
     ↓
-🐕 YAMNet 짖음 감지 (로컬)
+🐕 YAMNet 짖음 감지 (로컬, 쿨다운 5초)
     ↓ 짖음 감지 시
-💬 멘트 결정 (짖음 패턴별 텍스트)
-    ↓                    ↓
-🔊 즉시 효과음 재생     🎵 ElevenLabs TTS 음성 생성
-    ↓                    ↓
-🖼️ 보호자 사진 + 로딩  🎬 D-ID 얼굴 합성 영상 생성
-    ↓                    ↓
-📺 보호자 얼굴 + 목소리 영상 출력
+💬 멘트 결정 (랜덤 텍스트 선택)
+    ↓
+🎵 ElevenLabs TTS — 보호자 목소리 클로닝 음성 생성 (MP3)
+    ↓
+🎬 D-ID API — 보호자 사진 + 음성 → 말하는 영상 생성
+    ↓
+📺 ffplay로 영상 재생
 ```
 
 ---
@@ -39,17 +39,24 @@
 
 ```
 dog-care/
-├── main.py                  # 전체 파이프라인 진입점
-├── config.py                # 설정값 (샘플레이트, 임계값, 키워드)
-├── requirements.txt         # 의존성 패키지
+├── main.py                        # 전체 파이프라인 진입점
+├── demo.py                        # 발표용 데모 스크립트
+├── config.py                      # YAMNet 설정값
+├── requirements.txt               # 의존성 패키지
 ├── detector/
-│   ├── audio_stream.py      # 마이크 오디오 스트림 처리
-│   └── yamnet_model.py      # YAMNet 짖음 감지 모듈
+│   ├── audio_stream.py            # 마이크 실시간 오디오 스트림
+│   └── yamnet_model.py            # YAMNet 짖음 감지 모듈
+├── tts/
+│   └── elevenlabs_tts.py          # ElevenLabs 목소리 클로닝 TTS
+├── avatar/
+│   └── did_avatar.py              # D-ID 얼굴 합성 영상 생성
 └── assets/
-    └── responses/           # 짖음 패턴별 텍스트 멘트
+    ├── guardian_photo.jpg          # 보호자 사진
+    ├── voice_sample.wav            # 보호자 목소리 원본 녹음
+    ├── voice_sample_short.wav      # 트리밍된 목소리 샘플 (6초)
+    └── responses/
+        └── responses.py           # 짖음 감지 시 출력 멘트 목록
 ```
-
-> 2단계 이후 추가 예정: `tts/`, `avatar/`, `ux/`
 
 ---
 
@@ -59,47 +66,181 @@ dog-care/
 
 ```bash
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. 실행
+### 2. 실제 실행 (짖음 감지 → 영상 출력)
 
 ```bash
 python main.py
+```
+
+### 3. 발표용 데모 실행
+
+```bash
+python demo.py
 ```
 
 종료: `Ctrl+C`
 
 ---
 
-## 주요 설정 (`config.py`)
+## 주요 설정
+
+### `config.py` — YAMNet 설정
 
 | 설정값 | 기본값 | 설명 |
 |--------|--------|------|
 | `SAMPLE_RATE` | 16000 | YAMNet 요구 샘플레이트 (Hz) |
 | `CHUNK_DURATION` | 1.0 | 한 번에 분석할 오디오 길이 (초) |
 | `BARK_THRESHOLD` | 0.3 | 짖음 감지 임계값 (높을수록 엄격) |
-| `BARK_KEYWORDS` | dog, bark, yip, howl, bow-wow | 짖음 관련 YAMNet 클래스 키워드 |
+| `BARK_KEYWORDS` | dog, bark, yip, howl, bow-wow | YAMNet 짖음 클래스 키워드 |
+
+### `tts/elevenlabs_tts.py` — TTS 설정
+
+| 설정값 | 값 | 설명 |
+|--------|-----|------|
+| `model_id` | eleven_multilingual_v2 | 다국어 TTS 모델 |
+| `speed` | 0.75 | 음성 속도 (1.0 기본, 낮을수록 느림) |
+| `stability` | 0.5 | 음성 안정성 |
+| `similarity_boost` | 0.75 | 원본 목소리 유사도 |
 
 ---
 
-## 개발 단계
+## 개발 단계 및 현황
 
 | 단계 | 내용 | 상태 |
 |------|------|------|
-| 1단계 | YAMNet 짖음 감지 + 마이크 연결 | ✅ 진행 중 |
-| 2단계 | ElevenLabs TTS API 연동 | 예정 |
-| 3단계 | D-ID 얼굴 합성 API 연동 | 예정 |
-| 4단계 | 전체 파이프라인 통합 + 디스플레이 출력 | 예정 |
+| 1단계 | YAMNet 짖음 감지 + 마이크 연결 | ✅ 완료 |
+| 2단계 | ElevenLabs TTS API 연동 | ✅ 완료 |
+| 3단계 | D-ID 얼굴 합성 API 연동 | ✅ 완료 |
+| 4단계 | 전체 파이프라인 통합 + 디스플레이 출력 | 진행 중 |
 | 5단계 | 테스트 및 최적화 + 발표 준비 | 예정 |
+
+---
+
+## 개발 과정에서 발생한 문제점 및 해결 방안
+
+### 문제 1. Coqui TTS (XTTS v2) Windows 빌드 실패
+
+**상황**
+로컬 목소리 클로닝을 위해 Coqui TTS(XTTS v2) 설치를 시도했으나 Windows에서 빌드 실패.
+
+**원인**
+- `TTS.tts.utils.monotonic_align.core` C 확장 모듈 컴파일 시 Microsoft Visual C++ 필요
+- Visual Studio Build Tools 2026이 설치되어 있었으나 Python 빌드 시스템이 인식 불가
+
+**해결**
+- 1차 시도: F5-TTS (C 컴파일 불필요) 로 교체 → 한국어 발음 품질 불안정
+- 최종 해결: **ElevenLabs API Creator 플랜**으로 전환 → 한국어 품질 우수, 설치 간단
+
+---
+
+### 문제 2. F5-TTS torchcodec DLL 로드 실패
+
+**상황**
+F5-TTS 설치는 성공했으나 실행 시 `Could not load libtorchcodec` 에러 발생.
+
+**원인**
+`torchaudio.load`가 내부적으로 `torchcodec`을 사용하는데, Windows에서 FFmpeg DLL을 찾지 못함.
+
+**해결**
+`torchaudio.load`를 `soundfile`로 몽키패칭하여 torchcodec 우회:
+
+```python
+import soundfile as sf
+import torch, torchaudio
+
+def sf_load(path, *_):
+    data, sr = sf.read(str(path), always_2d=True)
+    return torch.tensor(data.T, dtype=torch.float32), sr
+
+torchaudio.load = sf_load
+```
+
+---
+
+### 문제 3. D-ID API 이미지 크기 초과 (InvalidFileSizeError)
+
+**상황**
+D-ID `/talks` 엔드포인트 호출 시 `file size exceeded 10 MB` 에러.
+
+**원인**
+보호자 사진 원본 해상도가 2544×3392으로 너무 높음.
+
+**해결**
+PIL로 업로드 전 512px로 리사이즈:
+
+```python
+from PIL import Image
+import io
+
+img = Image.open(GUARDIAN_PHOTO)
+img.thumbnail((512, 512), Image.LANCZOS)
+buf = io.BytesIO()
+img.save(buf, format="JPEG", quality=90)
+```
+
+---
+
+### 문제 4. D-ID audio_url base64 방식 500 에러
+
+**상황**
+음성을 base64로 인코딩해 `data:audio/wav;base64,...` 형식으로 전달했으나 500 에러.
+
+**원인**
+D-ID가 data URI 형식의 오디오를 지원하지 않음.
+
+**해결**
+음성 파일을 D-ID `/audios` 엔드포인트에 별도 업로드 후 S3 URL을 `audio_url`로 사용.
+
+---
+
+### 문제 5. ElevenLabs API 키 권한 오류 (401 Unauthorized)
+
+**상황**
+ElevenLabs API 키 생성 후 TTS 호출 시 `missing_permissions` 에러.
+
+**원인**
+API 키 생성 시 **키 제한** 토글이 활성화된 상태로 생성되어 모든 엔드포인트 접근이 차단됨.
+
+**해결**
+API 키 편집 → **키 제한 토글 OFF** → 모든 엔드포인트 접근 허용.
+
+---
+
+### 문제 6. ElevenLabs MP3 → D-ID 업로드 시 파일 충돌
+
+**상황**
+ElevenLabs가 MP3를 출력하는데, D-ID 모듈이 WAV→MP3 변환을 시도하다 같은 파일을 덮어쓰려 해 에러 발생.
+
+**원인**
+`did_avatar.py`의 `_wav_to_mp3` 함수가 `.mp3` 확장자 입력을 처리하지 못함.
+
+**해결**
+입력 파일 확장자를 확인해 WAV일 때만 변환, MP3는 바로 업로드:
+
+```python
+if audio_path.endswith(".wav"):
+    mp3_path = _wav_to_mp3(audio_path)
+    remove_after = True
+else:
+    mp3_path = audio_path
+    remove_after = False
+```
 
 ---
 
 ## 사용 기술
 
-- **Python 3.x**
-- **TensorFlow / TensorFlow Hub** — YAMNet 모델 실행
-- **sounddevice** — 실시간 마이크 오디오 스트리밍
-- **ElevenLabs API** — 보호자 목소리 클로닝 TTS
-- **D-ID API** — 보호자 사진 + 음성 → 말하는 영상 합성
+| 기술 | 역할 |
+|------|------|
+| Python 3.11 | 전체 시스템 구현 |
+| TensorFlow / TensorFlow Hub | YAMNet 짖음 감지 모델 실행 |
+| sounddevice | 실시간 마이크 오디오 스트리밍 |
+| ElevenLabs API | 보호자 목소리 클로닝 TTS 생성 |
+| D-ID API | 보호자 사진 + 음성 → 말하는 영상 합성 |
+| ffmpeg / ffplay | 오디오 변환 및 영상 재생 |
+| Pillow | 보호자 사진 리사이즈 전처리 |
+| requests / soundfile | HTTP API 통신 및 오디오 파일 처리 |
