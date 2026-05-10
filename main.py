@@ -3,7 +3,7 @@ import threading
 import subprocess
 from detector.audio_stream import AudioStream
 from detector.yamnet_model import BarkDetector
-from tts.xtts_tts import XTTSSpeaker
+from tts.elevenlabs_tts import ElevenLabsSpeaker
 from avatar.did_avatar import DIDAvatar
 from assets.responses.responses import get_response
 
@@ -13,7 +13,7 @@ COOLDOWN = 5.0
 def play_audio(path: str):
     import sounddevice as sd
     import soundfile as sf
-    data, samplerate = sf.read(path)
+    data, samplerate = sf.read(path, always_2d=False)
     sd.play(data, samplerate)
     sd.wait()
 
@@ -33,7 +33,7 @@ def main():
 
     detector = BarkDetector()
     stream = AudioStream()
-    tts = XTTSSpeaker()
+    tts = ElevenLabsSpeaker()
     avatar = DIDAvatar()
 
     last_bark_time = 0.0

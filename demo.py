@@ -10,7 +10,7 @@ import soundfile as sf
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-AUDIO_PATH = "assets/response.wav"
+AUDIO_PATH = "assets/response.mp3"
 VIDEO_PATH = "assets/response_video.mp4"
 FFPLAY = r"C:\Users\akfrd\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffplay.exe"
 
@@ -37,18 +37,17 @@ def simulate_bark_detection():
 
 
 def simulate_tts():
-    step("STEP 2 | F5-TTS 목소리 클로닝 음성 생성")
+    step("STEP 2 | ElevenLabs 목소리 클로닝 음성 생성")
     print("[TTS] 보호자 목소리로 음성 생성 중...")
     for i in range(1, 6):
         print(f"      생성 진행 중... {'█' * i}{'░' * (5-i)} {i*20}%", end="\r")
         time.sleep(0.4)
-    print("\n[TTS] 음성 저장 완료: assets/response.wav")
+    print("\n[TTS] 음성 저장 완료: assets/response.mp3")
     time.sleep(0.5)
 
     print("\n▶ 생성된 음성 재생:")
-    data, sr = sf.read(AUDIO_PATH)
-    sd.play(data, sr)
-    sd.wait()
+    import subprocess
+    subprocess.run([FFPLAY, "-autoexit", "-loglevel", "quiet", AUDIO_PATH], check=False)
     time.sleep(0.5)
 
 

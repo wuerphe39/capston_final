@@ -118,11 +118,16 @@ class DIDAvatar:
         self._image_url = _upload_image()
 
     def generate(self, audio_path: str, output_path: str = OUTPUT_VIDEO) -> str:
-        mp3_path = _wav_to_mp3(audio_path)
+        if audio_path.endswith(".wav"):
+            mp3_path = _wav_to_mp3(audio_path)
+            remove_after = True
+        else:
+            mp3_path = audio_path
+            remove_after = False
         try:
             audio_url = _upload_audio(mp3_path)
             talk_id = _create_talk(self._image_url, audio_url)
             return _wait_and_download(talk_id, output_path)
         finally:
-            if os.path.exists(mp3_path):
+            if remove_after and os.path.exists(mp3_path):
                 os.remove(mp3_path)
