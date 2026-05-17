@@ -1,6 +1,7 @@
 import sys
 import time
 import json
+import random
 import threading
 import subprocess
 from pathlib import Path
@@ -12,7 +13,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 # ── 상수 ──────────────────────────────────────────────────────────────────────
 FFPLAY = r"C:\Users\akfrd\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffplay.exe"
 ASSETS = Path(__file__).parent / "assets"
-GUARDIAN_PHOTO = ASSETS / "guardian_photo.jpg"
+VIDEOS_DIR = ASSETS / "videos"
 VOICE_SAMPLE = ASSETS / "voice_sample_web.wav"
 VOICE_ID_FILE = ASSETS / "voice_id.txt"
 COOLDOWN = 5.0
@@ -34,14 +35,29 @@ _objects = {}  # detector, stream, tts, avatar
 
 
 # ── 유틸리티 ───────────────────────────────────────────────────────────────────
-def show_photo() -> subprocess.Popen:
-    return subprocess.Popen(
-        [FFPLAY, "-loop", "0", "-loglevel", "quiet", str(GUARDIAN_PHOTO)],
-    )
+def _force_foreground(hwnd: int):
+    u32 = __import__("ctypes").windll.user32
+    k32 = __import__("ctypes").windll.kernel32
+    fg = u32.GetForegroundWindow()
+    fg_tid = u32.GetWindowThreadProcessId(fg, None)
+    my_tid = k32.GetCurrentThreadId()
+    u32.AttachThreadInput(fg_tid, my_tid, True)
+    u32.BringWindowToTop(hwnd)
+    u32.ShowWindow(hwnd, 3)
+    u32.SetForegroundWindow(hwnd)
+    u32.AttachThreadInput(fg_tid, my_tid, False)
 
 
 def play_video(path: str):
-    subprocess.run([FFPLAY, "-autoexit", "-loglevel", "quiet", path], check=False)
+    title = "DogCare"
+    proc = subprocess.Popen(
+        [FFPLAY, "-autoexit", "-fs", "-window_title", title, "-loglevel", "quiet", path],
+    )
+    time.sleep(0.8)
+    hwnd = __import__("ctypes").windll.user32.FindWindowW(None, title)
+    if hwnd:
+        _force_foreground(hwnd)
+    proc.wait()
 
 
 def get_current_voice_id() -> str:
@@ -51,13 +67,19 @@ def get_current_voice_id() -> str:
 
 
 # ── 짖음 감지 루프 ──────────────────────────────────────────────────────────────
-def bark_loop():
-    from assets.responses.responses import get_response
+def pick_video() -> tuple[str, str]:
+    from assets.responses.responses import RESPONSES
+    videos = sorted(VIDEOS_DIR.glob("response_*.mp4"))
+    if not videos:
+        raise FileNotFoundError("사전 생성 영상 없음. python prebuild.py 를 먼저 실행하세요.")
+    idx = random.randrange(len(videos))
+    text = RESPONSES[idx] if idx < len(RESPONSES) else ""
+    return str(videos[idx]), text
 
+
+def bark_loop():
     detector = _objects["detector"]
     stream = _objects["stream"]
-    tts = _objects["tts"]
-    avatar = _objects["avatar"]
     last_bark = 0.0
 
     stream.start()
@@ -74,19 +96,10 @@ def bark_loop():
             if is_bark and (now - last_bark) > COOLDOWN:
                 last_bark = now
                 _state["bark_count"] += 1
-                text = get_response()
+                video_path, text = pick_video()
                 _state["last_message"] = text
 
-                def respond(t=text):
-                    photo_proc = show_photo()
-                    try:
-                        audio_path = tts.speak(t)
-                        video_path = avatar.generate(audio_path)
-                    finally:
-                        photo_proc.terminate()
-                    play_video(video_path)
-
-                threading.Thread(target=respond, daemon=True).start()
+                threading.Thread(target=play_video, args=(video_path,), daemon=True).start()
     finally:
         stream.stop()
         _state["running"] = False
@@ -95,18 +108,12 @@ def bark_loop():
 def initialize_and_run():
     from detector.yamnet_model import BarkDetector
     from detector.audio_stream import AudioStream
-    from tts.elevenlabs_tts import ElevenLabsSpeaker
-    from avatar.did_avatar import DIDAvatar
 
     _state["initializing"] = True
     try:
         if "detector" not in _objects:
             _objects["detector"] = BarkDetector()
             _objects["stream"] = AudioStream()
-        if "tts" not in _objects:
-            _objects["tts"] = ElevenLabsSpeaker(get_current_voice_id())
-        if "avatar" not in _objects:
-            _objects["avatar"] = DIDAvatar()
     finally:
         _state["initializing"] = False
 
@@ -134,9 +141,10 @@ def upload_photo():
     f = request.files.get("photo")
     if not f:
         return jsonify({"error": "파일 없음"}), 400
-    f.save(str(GUARDIAN_PHOTO))
+    photo_path = str(ASSETS / "guardian_photo.jpg")
+    f.save(photo_path)
     if "avatar" in _objects:
-        _objects["avatar"].update_photo(str(GUARDIAN_PHOTO))
+        _objects["avatar"].update_photo(photo_path)
     return jsonify({"ok": True})
 
 
