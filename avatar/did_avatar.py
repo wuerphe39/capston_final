@@ -28,20 +28,19 @@ def _wav_to_mp3(wav_path: str) -> str:
     return mp3_path
 
 
-def _resize_image(max_size: int = 512) -> bytes:
-    """D-ID 업로드용으로 이미지를 리사이즈해 bytes 반환"""
+def _resize_image(photo_path: str = GUARDIAN_PHOTO, max_size: int = 512) -> bytes:
     from PIL import Image
     import io
-    img = Image.open(GUARDIAN_PHOTO)
+    img = Image.open(photo_path)
     img.thumbnail((max_size, max_size), Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
 
 
-def _upload_image() -> str:
+def _upload_image(photo_path: str = GUARDIAN_PHOTO) -> str:
     """보호자 사진을 D-ID에 업로드하고 URL 반환"""
-    img_bytes = _resize_image()
+    img_bytes = _resize_image(photo_path)
     resp = requests.post(
         f"{DID_API_URL}/images",
         headers={"Authorization": f"Basic {DID_API_KEY}"},
@@ -116,6 +115,11 @@ class DIDAvatar:
     def __init__(self):
         print("[D-ID] 초기화 중... 보호자 사진 업로드")
         self._image_url = _upload_image()
+
+    def update_photo(self, photo_path: str = GUARDIAN_PHOTO):
+        """새 사진으로 교체 — D-ID에 재업로드"""
+        print("[D-ID] 사진 교체 중...")
+        self._image_url = _upload_image(photo_path)
 
     def generate(self, audio_path: str, output_path: str = OUTPUT_VIDEO) -> str:
         if audio_path.endswith(".wav"):

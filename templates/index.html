@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>반려견 짖음 감지 시스템</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --accent: #3b82f6;
+      --accent-dark: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 1.4rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    header .dog-icon { font-size: 2rem; }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header p { font-size: 0.82rem; opacity: 0.8; margin-top: 0.15rem; }
+
+    main {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.4rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 1.6rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+    }
+
+    /* 업로드 박스 */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 1.4rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .upload-area:hover { border-color: var(--accent); background: #eff6ff; }
+    .upload-area input[type=file] { display: none; }
+    .upload-area .icon { font-size: 2.2rem; margin-bottom: 0.5rem; }
+    .upload-area p { font-size: 0.83rem; color: var(--muted); }
+    .upload-area p small { display: block; margin-top: 0.2rem; font-size: 0.75rem; }
+
+    img#photo-preview {
+      width: 100%;
+      max-height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    #voice-filename {
+      margin-top: 0.8rem;
+      font-size: 0.83rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.65rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: var(--accent); color: white; }
+
+    .tag {
+      display: inline-block;
+      margin-top: 0.6rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      background: var(--border);
+      color: var(--muted);
+    }
+    .tag.ok { background: #dcfce7; color: #16a34a; }
+    .tag.err { background: #fee2e2; color: #dc2626; }
+
+    /* 상태 카드 */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.2rem;
+    }
+    .dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .dot.running { background: var(--success); animation: pulse 1.4s ease-in-out infinite; }
+    .dot.init { background: #f59e0b; animation: pulse 0.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+
+    #status-label { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      margin-top: 0.6rem;
+    }
+    .stat-box {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+    }
+    .stat-box .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-box .value { font-size: 1.1rem; font-weight: 700; margin-top: 0.2rem; color: var(--text); }
+
+    #last-msg-box {
+      grid-column: 1 / -1;
+      margin-top: 0.8rem;
+      background: #eff6ff;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.88rem;
+      color: #1d4ed8;
+      min-height: 44px;
+    }
+
+    /* 제어 카드 */
+    .full-width { grid-column: 1 / -1; }
+
+    #toggle-btn {
+      width: 100%;
+      padding: 1.1rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.25s, transform 0.1s, opacity 0.2s;
+      letter-spacing: 0.03em;
+    }
+    #toggle-btn.start { background: var(--success); color: white; }
+    #toggle-btn.stop  { background: var(--danger);  color: white; }
+    #toggle-btn.init  { background: #f59e0b; color: white; cursor: default; }
+    #toggle-btn:active:not(:disabled) { transform: scale(0.99); }
+    #toggle-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .log {
+      margin-top: 1.2rem;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 72px;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    .log .entry { padding: 0.1rem 0; }
+    .log .entry.bark { color: #3b82f6; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="dog-icon">🐕</div>
+  <div>
+    <h1>반려견 짖음 감지 시스템</h1>
+    <p>AI 기반 실시간 보호자 응답 시스템 — YAMNet · ElevenLabs · D-ID</p>
+  </div>
+</header>
+
+<main>
+  <!-- 보호자 사진 -->
+  <div class="card">
+    <div class="card-title">보호자 사진 등록</div>
+    <label class="upload-area" id="photo-drop">
+      <input type="file" id="photo-input" accept="image/*">
+      <div class="icon">📷</div>
+      <p>클릭하거나 파일을 드래그하세요<small>JPG, PNG 지원</small></p>
+    </label>
+    <img id="photo-preview" alt="미리보기">
+    <button class="btn btn-primary" id="photo-btn" disabled>사진 등록하기</button>
+    <span class="tag" id="photo-tag">미등록</span>
+  </div>
+
+  <!-- 보호자 목소리 -->
+  <div class="card">
+    <div class="card-title">보호자 목소리 등록</div>
+    <label class="upload-area" id="voice-drop">
+      <input type="file" id="voice-input" accept="audio/*">
+      <div class="icon">🎙️</div>
+      <p>WAV 녹음 파일을 업로드하세요<small>ElevenLabs Instant Voice Clone 자동 등록</small></p>
+    </label>
+    <div id="voice-filename">선택된 파일 없음</div>
+    <button class="btn btn-primary" id="voice-btn" disabled>목소리 클로닝 등록</button>
+    <span class="tag" id="voice-tag">미등록</span>
+  </div>
+
+  <!-- 시스템 상태 -->
+  <div class="card">
+    <div class="card-title">실시간 감지 상태</div>
+    <div class="status-indicator">
+      <div class="dot" id="dot"></div>
+      <span id="status-label">대기 중</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="label">감지 클래스</div>
+        <div class="value" id="s-label">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">신뢰도</div>
+        <div class="value" id="s-score">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">짖음 감지 횟수</div>
+        <div class="value" id="s-count">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">상태</div>
+        <div class="value" id="s-status">정지</div>
+      </div>
+      <div id="last-msg-box">마지막 응답 멘트가 여기에 표시됩니다.</div>
+    </div>
+  </div>
+
+  <!-- 시스템 제어 -->
+  <div class="card">
+    <div class="card-title">시스템 제어</div>
+    <button id="toggle-btn" class="start">시작</button>
+    <div class="log" id="log">
+      <div class="entry">시스템 준비 완료. 사진과 목소리를 등록한 후 시작하세요.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── 사진 업로드 ─────────────────────────────────────────────────
+const photoInput = document.getElementById("photo-input");
+const photoPreview = document.getElementById("photo-preview");
+const photoBtn = document.getElementById("photo-btn");
+const photoTag = document.getElementById("photo-tag");
+
+photoInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  photoPreview.src = URL.createObjectURL(file);
+  photoPreview.style.display = "block";
+  photoBtn.disabled = false;
+});
+
+photoBtn.addEventListener("click", async () => {
+  const file = photoInput.files[0];
+  if (!file) return;
+  photoBtn.disabled = true;
+  photoBtn.textContent = "업로드 중...";
+  const fd = new FormData();
+  fd.append("photo", file);
+  try {
+    const res = await fetch("/upload/photo", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      photoTag.textContent = "등록 완료";
+      photoTag.className = "tag ok";
+      addLog("보호자 사진 등록 완료");
+    } else {
+      photoTag.textContent = "오류";
+      photoTag.className = "tag err";
+      addLog("사진 오류: " + data.error);
+    }
+  } catch {
+    photoTag.textContent = "오류";
+    photoTag.className = "tag err";
+  }
+  photoBtn.textContent = "사진 등록하기";
+  photoBtn.disabled = false;
+});
+
+// ── 목소리 업로드 ────────────────────────────────────────────────
+const voiceInput = document.getElementById("voice-input");
+const voiceFilename = document.getElementById("voice-filename");
+const voiceBtn = document.getElementById("voice-btn");
+const voiceTag = document.getElementById("voice-tag");
+
+voiceInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  voiceFilename.textContent = "선택: " + file.name;
+  voiceBtn.disabled = false;
+});
+
+voiceBtn.addEventListener("click", async () => {
+  const file = voiceInput.files[0];
+  if (!file) return;
+  voiceBtn.disabled = true;
+  voiceBtn.textContent = "클로닝 중... (수초 소요)";
+  const fd = new FormData();
+  fd.append("voice", file);
+  try {
+    const res = await fetch("/upload/voice", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.ok) {
+      voiceTag.textContent = "등록 완료";
+      voiceTag.className = "tag ok";
+      addLog("목소리 클로닝 완료 — Voice ID: " + data.voice_id);
+    } else {
+      voiceTag.textContent = "오류";
+      voiceTag.className = "tag err";
+      addLog("목소리 오류: " + data.error);
+    }
+  } catch {
+    voiceTag.textContent = "오류";
+    voiceTag.className = "tag err";
+  }
+  voiceBtn.textContent = "목소리 클로닝 등록";
+  voiceBtn.disabled = false;
+});
+
+// ── 시스템 제어 ─────────────────────────────────────────────────
+const toggleBtn = document.getElementById("toggle-btn");
+let clientRunning = false;
+
+toggleBtn.addEventListener("click", async () => {
+  if (toggleBtn.classList.contains("init")) return;
+  toggleBtn.disabled = true;
+
+  if (!clientRunning) {
+    addLog("시스템 시작 중... (YAMNet 모델 로딩 — 최대 30초)");
+    const res = await fetch("/start", { method: "POST" });
+    const data = await res.json();
+    if (data.ok) {
+      clientRunning = true;
+      toggleBtn.textContent = "정지";
+      toggleBtn.className = "stop";
+    }
+  } else {
+    await fetch("/stop", { method: "POST" });
+    clientRunning = false;
+    toggleBtn.textContent = "시작";
+    toggleBtn.className = "start";
+    addLog("시스템 정지됨");
+  }
+  toggleBtn.disabled = false;
+});
+
+// ── 실시간 상태 SSE ─────────────────────────────────────────────
+const dot = document.getElementById("dot");
+const statusLabel = document.getElementById("status-label");
+let prevBarkCount = 0;
+
+const es = new EventSource("/status");
+es.onmessage = e => {
+  const d = JSON.parse(e.data);
+
+  // 점 + 상태 텍스트
+  if (d.initializing) {
+    dot.className = "dot init";
+    statusLabel.textContent = "초기화 중...";
+    toggleBtn.className = "init";
+    toggleBtn.textContent = "초기화 중...";
+  } else if (d.running) {
+    dot.className = "dot running";
+    statusLabel.textContent = "감지 중";
+    if (!clientRunning) {
+      toggleBtn.className = "stop";
+      toggleBtn.textContent = "정지";
+      clientRunning = true;
+    }
+  } else {
+    dot.className = "dot";
+    statusLabel.textContent = "대기 중";
+  }
+
+  document.getElementById("s-label").textContent  = d.label  || "—";
+  document.getElementById("s-score").textContent  = d.score  ? d.score.toFixed(3) : "—";
+  document.getElementById("s-count").textContent  = d.bark_count;
+  document.getElementById("s-status").textContent = d.running ? "실행 중" : "정지";
+
+  if (d.last_message) {
+    document.getElementById("last-msg-box").textContent = '💬 ' + d.last_message;
+  }
+
+  if (d.bark_count > prevBarkCount) {
+    prevBarkCount = d.bark_count;
+    addLog(`짖음 감지! → "${d.last_message}"`, true);
+  }
+};
+
+// ── 로그 ────────────────────────────────────────────────────────
+function addLog(msg, isBark = false) {
+  const log = document.getElementById("log");
+  const t = new Date().toLocaleTimeString("ko-KR");
+  const div = document.createElement("div");
+  div.className = "entry" + (isBark ? " bark" : "");
+  div.textContent = `[${t}] ${msg}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>

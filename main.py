@@ -1,34 +1,38 @@
+import sys
 import time
 import threading
 import subprocess
+from pathlib import Path
 from detector.audio_stream import AudioStream
 from detector.yamnet_model import BarkDetector
 from tts.elevenlabs_tts import ElevenLabsSpeaker
 from avatar.did_avatar import DIDAvatar
 from assets.responses.responses import get_response
 
+sys.stdout.reconfigure(encoding="utf-8")
+
 COOLDOWN = 5.0
+FFPLAY = r"C:\Users\akfrd\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffplay.exe"
+GUARDIAN_PHOTO = str(Path(__file__).parent / "assets" / "guardian_photo.jpg")
 
 
-def play_audio(path: str):
-    import sounddevice as sd
-    import soundfile as sf
-    data, samplerate = sf.read(path, always_2d=False)
-    sd.play(data, samplerate)
-    sd.wait()
+def show_photo() -> subprocess.Popen:
+    """보호자 사진을 창에 띄우고 프로세스 반환 (영상 준비될 때까지 유지)"""
+    return subprocess.Popen(
+        [FFPLAY, "-loop", "0", "-loglevel", "quiet", GUARDIAN_PHOTO],
+    )
 
 
 def play_video(path: str):
-    """ffplay로 영상 재생 (소리 포함)"""
     subprocess.run(
-        ["ffplay", "-autoexit", "-loglevel", "quiet", path],
+        [FFPLAY, "-autoexit", "-loglevel", "quiet", path],
         check=False,
     )
 
 
 def main():
     print("=" * 50)
-    print("  반려견 짖음 감지 시스템 - Step 3 (D-ID 연동)")
+    print("  반려견 짖음 감지 시스템")
     print("=" * 50)
 
     detector = BarkDetector()
@@ -54,9 +58,13 @@ def main():
                 text = get_response()
                 print(f"[멘트] {text}")
 
-                def tts_avatar_and_play():
-                    audio_path = tts.speak(text)
-                    video_path = avatar.generate(audio_path)
+                def tts_avatar_and_play(t=text):
+                    photo_proc = show_photo()
+                    try:
+                        audio_path = tts.speak(t)
+                        video_path = avatar.generate(audio_path)
+                    finally:
+                        photo_proc.terminate()
                     play_video(video_path)
 
                 threading.Thread(target=tts_avatar_and_play, daemon=True).start()
