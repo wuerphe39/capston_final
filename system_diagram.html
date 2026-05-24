@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>AI 반려견 짖음 감지 시스템 — 구성도</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    h1 {
+      color: #f1f5f9;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      letter-spacing: 0.04em;
+    }
+    svg { overflow: visible; }
+
+    /* 블록 */
+    .block rect {
+      rx: 14; ry: 14;
+      stroke-width: 2;
+    }
+    .block text {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      dominant-baseline: middle;
+      text-anchor: middle;
+    }
+
+    /* 신호 흐름 점 */
+    .signal {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+<h1>🐕 AI 기반 반려견 짖음 감지 시스템 구성도</h1>
+
+<svg width="900" height="500" viewBox="0 0 900 500">
+  <defs>
+    <!-- 화살표 마커 -->
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a855f7"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+
+    <!-- 글로우 필터 -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ────────────────── 블록 정의 ────────────────── -->
+
+  <!-- 1. 마이크 -->
+  <g class="block" id="b-mic">
+    <rect x="30" y="200" width="120" height="70" rx="14" ry="14" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <text x="90" y="228" fill="#93c5fd" font-size="22">🎙️</text>
+    <text x="90" y="252" fill="#e2e8f0" font-size="13" font-weight="600">마이크 입력</text>
+  </g>
+
+  <!-- 2. YAMNet -->
+  <g class="block" id="b-yamnet">
+    <rect x="210" y="200" width="140" height="70" rx="14" ry="14" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <text x="280" y="224" fill="#93c5fd" font-size="14" font-weight="700">YAMNet</text>
+    <text x="280" y="244" fill="#94a3b8" font-size="11">Google TF Hub</text>
+    <text x="280" y="260" fill="#e2e8f0" font-size="12">짖음 감지 모델</text>
+  </g>
+
+  <!-- 3. 짖음 판단 -->
+  <g class="block" id="b-detect">
+    <rect x="410" y="200" width="130" height="70" rx="14" ry="14" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="475" y="228" fill="#86efac" font-size="22">🐕</text>
+    <text x="475" y="252" fill="#e2e8f0" font-size="13" font-weight="600">짖음 감지!</text>
+  </g>
+
+  <!-- 4. ElevenLabs (상단) -->
+  <g class="block" id="b-tts">
+    <rect x="610" y="80" width="150" height="70" rx="14" ry="14" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="685" y="104" fill="#d8b4fe" font-size="13" font-weight="700">ElevenLabs</text>
+    <text x="685" y="120" fill="#94a3b8" font-size="11">목소리 클로닝 TTS</text>
+    <text x="685" y="136" fill="#e2e8f0" font-size="11">MP3 생성</text>
+  </g>
+
+  <!-- 5. D-ID (하단) -->
+  <g class="block" id="b-did">
+    <rect x="610" y="320" width="150" height="70" rx="14" ry="14" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="685" y="344" fill="#fcd34d" font-size="13" font-weight="700">D-ID API</text>
+    <text x="685" y="360" fill="#94a3b8" font-size="11">얼굴 합성</text>
+    <text x="685" y="376" fill="#e2e8f0" font-size="11">MP4 영상 생성</text>
+  </g>
+
+  <!-- 6. 영상 재생 -->
+  <g class="block" id="b-play">
+    <rect x="800" y="200" width="80" height="70" rx="14" ry="14" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="840" y="228" fill="#86efac" font-size="22">📺</text>
+    <text x="840" y="252" fill="#e2e8f0" font-size="11" font-weight="600">영상 재생</text>
+  </g>
+
+  <!-- 웹 UI 박스 (점선) -->
+  <rect x="20" y="430" width="870" height="55" rx="10" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="455" y="450" fill="#475569" font-size="12" text-anchor="middle">Flask 웹 UI (localhost:5000)</text>
+  <text x="455" y="468" fill="#334155" font-size="11" text-anchor="middle">사진 등록 · 목소리 등록 · 시작/정지 · 실시간 상태 · 브라우저 내 영상 재생</text>
+
+  <!-- ────────────────── 연결선 ────────────────── -->
+
+  <!-- 마이크 → YAMNet -->
+  <line x1="150" y1="235" x2="208" y2="235" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="179" y="225" fill="#64748b" font-size="10" text-anchor="middle">오디오 스트림</text>
+
+  <!-- YAMNet → 짖음감지 -->
+  <line x1="350" y1="235" x2="408" y2="235" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="379" y="225" fill="#64748b" font-size="10" text-anchor="middle">점수 분석</text>
+
+  <!-- 짖음감지 → ElevenLabs (↗) -->
+  <path d="M540,215 C575,215 585,115 608,115" fill="none" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+  <text x="570" y="160" fill="#64748b" font-size="10" text-anchor="middle">멘트 텍스트</text>
+
+  <!-- 짖음감지 → D-ID (↘) -->
+  <path d="M540,255 C575,255 585,355 608,355" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="570" y="320" fill="#64748b" font-size="10" text-anchor="middle">보호자 사진</text>
+
+  <!-- ElevenLabs → 영상재생 -->
+  <path d="M760,115 C790,115 820,200 838,200" fill="none" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+  <!-- D-ID → 영상재생 -->
+  <path d="M760,355 C790,355 820,270 838,270" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- ElevenLabs ↔ D-ID (음성 전달) -->
+  <line x1="685" y1="150" x2="685" y2="318" stroke="#334155" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+  <text x="700" y="238" fill="#475569" font-size="10">MP3</text>
+
+  <!-- ────────────────── 신호 애니메이션 점 ────────────────── -->
+
+  <!-- 점 1: 마이크→YAMNet -->
+  <circle class="signal" r="6" fill="#3b82f6" filter="url(#glow)">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="0s">
+      <mpath href="#path-mic-yamnet"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.2s" repeatCount="indefinite" begin="0s"/>
+  </circle>
+  <path id="path-mic-yamnet" d="M150,235 L208,235" fill="none"/>
+
+  <!-- 점 2: YAMNet→짖음 -->
+  <circle class="signal" r="6" fill="#3b82f6" filter="url(#glow)">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="1.2s">
+      <mpath href="#path-yamnet-detect"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.2s" repeatCount="indefinite" begin="1.2s"/>
+  </circle>
+  <path id="path-yamnet-detect" d="M350,235 L408,235" fill="none"/>
+
+  <!-- 점 3: 짖음→ElevenLabs -->
+  <circle class="signal" r="6" fill="#a855f7" filter="url(#glow)">
+    <animateMotion dur="1.4s" repeatCount="indefinite" begin="2.4s">
+      <mpath href="#path-detect-tts"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.4s" repeatCount="indefinite" begin="2.4s"/>
+  </circle>
+  <path id="path-detect-tts" d="M540,215 C575,215 585,115 608,115" fill="none"/>
+
+  <!-- 점 4: 짖음→D-ID -->
+  <circle class="signal" r="6" fill="#f59e0b" filter="url(#glow)">
+    <animateMotion dur="1.4s" repeatCount="indefinite" begin="2.4s">
+      <mpath href="#path-detect-did"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.4s" repeatCount="indefinite" begin="2.4s"/>
+  </circle>
+  <path id="path-detect-did" d="M540,255 C575,255 585,355 608,355" fill="none"/>
+
+  <!-- 점 5: ElevenLabs→MP3→D-ID -->
+  <circle class="signal" r="5" fill="#94a3b8" filter="url(#glow)">
+    <animateMotion dur="1s" repeatCount="indefinite" begin="3.8s">
+      <mpath href="#path-tts-did"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1s" repeatCount="indefinite" begin="3.8s"/>
+  </circle>
+  <path id="path-tts-did" d="M685,150 L685,318" fill="none"/>
+
+  <!-- 점 6: ElevenLabs→재생 -->
+  <circle class="signal" r="6" fill="#22c55e" filter="url(#glow)">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="4.8s">
+      <mpath href="#path-tts-play"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.2s" repeatCount="indefinite" begin="4.8s"/>
+  </circle>
+  <path id="path-tts-play" d="M760,115 C790,115 820,200 838,200" fill="none"/>
+
+  <!-- 점 7: D-ID→재생 -->
+  <circle class="signal" r="6" fill="#22c55e" filter="url(#glow)">
+    <animateMotion dur="1.2s" repeatCount="indefinite" begin="4.8s">
+      <mpath href="#path-did-play"/>
+    </animateMotion>
+    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="1.2s" repeatCount="indefinite" begin="4.8s"/>
+  </circle>
+  <path id="path-did-play" d="M760,355 C790,355 820,270 838,270" fill="none"/>
+
+  <!-- ────────────────── 단계 레이블 ────────────────── -->
+  <text x="90" y="285" fill="#475569" font-size="10" text-anchor="middle">① 실시간 감지</text>
+  <text x="280" y="285" fill="#475569" font-size="10" text-anchor="middle">② AI 분류</text>
+  <text x="475" y="285" fill="#475569" font-size="10" text-anchor="middle">③ 쿨다운 5초</text>
+  <text x="685" y="60" fill="#475569" font-size="10" text-anchor="middle">④ 목소리 클로닝</text>
+  <text x="685" y="405" fill="#475569" font-size="10" text-anchor="middle">⑤ 얼굴 합성</text>
+  <text x="840" y="285" fill="#475569" font-size="10" text-anchor="middle">⑥ 출력</text>
+
+  <!-- 짖음 감지 펄스 -->
+  <circle cx="475" cy="235" r="45" fill="none" stroke="#22c55e" stroke-width="1" opacity="0">
+    <animate attributeName="r" values="35;55;35" dur="2s" repeatCount="indefinite" begin="2.4s"/>
+    <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite" begin="2.4s"/>
+  </circle>
+
+</svg>
+
+<p style="color:#334155; font-size:0.8rem; margin-top:1.5rem;">
+  Python 3.11 · TensorFlow YAMNet · ElevenLabs API · D-ID API · Flask Web UI
+</p>
+
+<!-- 자막 영역 -->
+<div id="subtitle-box" style="
+  margin-top: 1.2rem;
+  width: 900px;
+  min-height: 52px;
+  background: rgba(30,41,59,0.9);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2rem;
+">
+  <p id="subtitle-text" style="
+    color: #f1f5f9;
+    font-size: 1rem;
+    text-align: center;
+    line-height: 1.6;
+    transition: opacity 0.4s;
+  "></p>
+</div>
+
+<script>
+const subtitles = [
+  { time: 0,     text: "🎙️  마이크가 실시간으로 주변 소리를 수집합니다." },
+  { time: 4000,  text: "🤖  YAMNet AI 모델이 소리를 분석해 개 짖음 여부를 판단합니다." },
+  { time: 8000,  text: "🐕  짖음이 감지되었습니다! 보호자 응답 파이프라인을 시작합니다." },
+  { time: 12000, text: "🎵  ElevenLabs가 보호자 목소리로 음성을 생성하고, D-ID가 보호자 얼굴 영상을 합성합니다." },
+  { time: 16000, text: "📺  완성된 영상을 웹 브라우저에 즉시 재생합니다. 강아지가 보호자의 얼굴과 목소리로 안심합니다." },
+];
+
+const CYCLE = 20000; // 5단계 × 4초
+const el = document.getElementById("subtitle-text");
+
+function showSubtitle(text) {
+  el.style.opacity = 0;
+  setTimeout(() => {
+    el.textContent = text;
+    el.style.opacity = 1;
+  }, 200);
+}
+
+function runCycle() {
+  subtitles.forEach(({ time, text }) => {
+    setTimeout(() => showSubtitle(text), time);
+  });
+}
+
+// 첫 실행
+runCycle();
+// 루프
+setInterval(runCycle, CYCLE);
+</script>
+
+</body>
+</html>

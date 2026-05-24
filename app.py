@@ -3,15 +3,13 @@ import time
 import json
 import random
 import threading
-import subprocess
 from pathlib import Path
 
-from flask import Flask, request, jsonify, render_template, Response, stream_with_context
+from flask import Flask, request, jsonify, render_template, Response, stream_with_context, send_from_directory
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 # ── 상수 ──────────────────────────────────────────────────────────────────────
-FFPLAY = r"C:\Users\akfrd\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffplay.exe"
 ASSETS = Path(__file__).parent / "assets"
 VIDEOS_DIR = ASSETS / "videos"
 VOICE_SAMPLE = ASSETS / "voice_sample_web.wav"
@@ -29,35 +27,10 @@ _state = {
     "score": 0.0,
     "bark_count": 0,
     "last_message": "",
+    "current_video": "",   # 브라우저가 재생할 영상 파일명
 }
 _stop_event = threading.Event()
-_objects = {}  # detector, stream, tts, avatar
-
-
-# ── 유틸리티 ───────────────────────────────────────────────────────────────────
-def _force_foreground(hwnd: int):
-    u32 = __import__("ctypes").windll.user32
-    k32 = __import__("ctypes").windll.kernel32
-    fg = u32.GetForegroundWindow()
-    fg_tid = u32.GetWindowThreadProcessId(fg, None)
-    my_tid = k32.GetCurrentThreadId()
-    u32.AttachThreadInput(fg_tid, my_tid, True)
-    u32.BringWindowToTop(hwnd)
-    u32.ShowWindow(hwnd, 3)
-    u32.SetForegroundWindow(hwnd)
-    u32.AttachThreadInput(fg_tid, my_tid, False)
-
-
-def play_video(path: str):
-    title = "DogCare"
-    proc = subprocess.Popen(
-        [FFPLAY, "-autoexit", "-fs", "-window_title", title, "-loglevel", "quiet", path],
-    )
-    time.sleep(0.8)
-    hwnd = __import__("ctypes").windll.user32.FindWindowW(None, title)
-    if hwnd:
-        _force_foreground(hwnd)
-    proc.wait()
+_objects = {}
 
 
 def get_current_voice_id() -> str:
@@ -74,7 +47,7 @@ def pick_video() -> tuple[str, str]:
         raise FileNotFoundError("사전 생성 영상 없음. python prebuild.py 를 먼저 실행하세요.")
     idx = random.randrange(len(videos))
     text = RESPONSES[idx] if idx < len(RESPONSES) else ""
-    return str(videos[idx]), text
+    return videos[idx].name, text
 
 
 def bark_loop():
@@ -96,10 +69,16 @@ def bark_loop():
             if is_bark and (now - last_bark) > COOLDOWN:
                 last_bark = now
                 _state["bark_count"] += 1
-                video_path, text = pick_video()
+                video_name, text = pick_video()
                 _state["last_message"] = text
+                _state["current_video"] = video_name
 
-                threading.Thread(target=play_video, args=(video_path,), daemon=True).start()
+                def clear_video(name=video_name):
+                    time.sleep(3)
+                    if _state["current_video"] == name:
+                        _state["current_video"] = ""
+
+                threading.Thread(target=clear_video, daemon=True).start()
     finally:
         stream.stop()
         _state["running"] = False
@@ -124,6 +103,11 @@ def initialize_and_run():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/video/<filename>")
+def serve_video(filename):
+    return send_from_directory(str(VIDEOS_DIR), filename)
 
 
 @app.route("/status")
@@ -184,6 +168,7 @@ def start():
     _stop_event.clear()
     _state["bark_count"] = 0
     _state["last_message"] = ""
+    _state["current_video"] = ""
 
     threading.Thread(target=initialize_and_run, daemon=True).start()
     return jsonify({"ok": True})
@@ -192,6 +177,7 @@ def start():
 @app.route("/stop", methods=["POST"])
 def stop():
     _stop_event.set()
+    _state["current_video"] = ""
     return jsonify({"ok": True})
 
 
